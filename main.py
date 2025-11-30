@@ -9,9 +9,16 @@ import base64
 app = Flask(__name__)
 
 device = torch.device("cpu")
-model = models.resnet18(pretrained=False)
+
+# Load pretrained ResNet18
+model = models.resnet18(pretrained=True)
+
+# Replace final layer for 5 classes
 model.fc = nn.Linear(512, 5)
-model.load_state_dict(torch.load('model_weights.pth', map_location=device))
+
+# Load your trained classifier head weights
+model.fc.load_state_dict(torch.load('classifier_head.pth', map_location=device))
+
 model = model.to(device)
 model.eval()
 
