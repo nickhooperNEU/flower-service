@@ -1,58 +1,37 @@
-from flask import Flask, request, jsonify
-import torch
-import torch.nn as nn
-from torchvision import models, transforms
-from PIL import Image
-import io
-import base64
+from flask import Flask, jsonify
+import sys
 
 app = Flask(__name__)
 
-device = torch.device("cpu")
+print("=" * 50)
+print("FLASK APP STARTING")
+print("=" * 50)
+print(f"Python version: {sys.version}")
 
-# Load pretrained ResNet18
-model = models.resnet18(pretrained=True)
+try:
+    print("Importing torch...")
+    import torch
+    print(f"✓ Torch imported: {torch.__version__}")
+except Exception as e:
+    print(f"✗ Torch import failed: {e}")
 
-# Replace final layer for 5 classes
-model.fc = nn.Linear(512, 5)
+try:
+    print("Importing torchvision...")
+    from torchvision import models, transforms
+    print("✓ Torchvision imported")
+except Exception as e:
+    print(f"✗ Torchvision import failed: {e}")
 
-# Load your trained classifier head weights
-model.fc.load_state_dict(torch.load('classifier_head.pth', map_location=device))
+try:
+    print("Loading ResNet18...")
+    model = models.resnet18(pretrained=True)
+    print("✓ ResNet18 loaded")
+except Exception as e:
+    print(f"✗ ResNet18 load failed: {e}")
 
-model = model.to(device)
-model.eval()
-
-class_labels = {0: 'Class 0', 1: 'Class 1', 2: 'Class 2', 3: 'Class 3', 4: 'Class 4'}
-
-val_transform = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    try:
-        data = request.get_json()
-        image_data = base64.b64decode(data['image'])
-        image = Image.open(io.BytesIO(image_data)).convert('RGB')
-        img_tensor = val_transform(image).unsqueeze(0).to(device)
-        
-        with torch.no_grad():
-            outputs = model(img_tensor)
-            probabilities = torch.nn.functional.softmax(outputs, dim=1)
-            predicted_class = outputs.argmax(1).item()
-            confidence = probabilities[0, predicted_class].item()
-        
-        return jsonify({
-            'predicted_class': predicted_class,
-            'class_name': class_labels[predicted_class],
-            'confidence': float(confidence),
-            'all_probabilities': {class_labels[i]: float(probabilities[0, i].item()) for i in range(5)}
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
+print("=" * 50)
+print("APP READY")
+print("=" * 50)
 
 @app.route('/health', methods=['GET'])
 def health():
